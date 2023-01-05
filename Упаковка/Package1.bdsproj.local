@@ -1,0 +1,12 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<BorlandProject>
+	<Transactions>
+    <Transaction>2021.02.08 20:51:55.802.pas,C:\Users\кирилл\Documents\Borland Studio Projects\Unit1.pas=C:\Users\кирилл\Desktop\Курсовой проект\Арканоид\Упаковка\Arcanoid.pas</Transaction>
+    <Transaction>2021.02.08 20:52:06.694.bdsproj,C:\Users\кирилл\Documents\Borland Studio Projects\Package1.bdsproj=C:\Users\кирилл\Desktop\Курсовой проект\Арканоид\Упаковка\Package1.bdsproj</Transaction>
+    <Transaction>2021.02.10 18:20:46.179.pas,C:\Users\кирилл\Desktop\Курсовой проект\Арканоид\Упаковка\Unit1.pas=C:\Users\кирилл\Desktop\Курсовой проект\Арканоид\Упаковка\Ball.pas</Transaction>
+    <Transaction>2021.02.10 21:20:23.533.pas,C:\Users\кирилл\Desktop\Курсовой проект\Арканоид\Упаковка\Ball.pas=</Transaction>
+    <Transaction>2021.02.11 18:02:12.098.pas,C:\Users\кирилл\Desktop\Курсовой проект\Арканоид\Упаковка\Unit1.pas=C:\Users\кирилл\Desktop\Курсовой проект\Арканоид\Упаковка\Ball.pas</Transaction>
+    <Transaction>2021.02.18 18:19:46.115.pas,C:\Users\кирилл\Desktop\Курсовой проект\Арканоид\Упаковка\Unit1.pas=C:\Users\кирилл\Desktop\Курсовой проект\Арканоид\Упаковка\Player.pas</Transaction>
+    <Transaction>2021.02.18 18:51:25.610.pas,C:\Users\кирилл\Desktop\Курсовой проект\Арканоид\Упаковка\Player.pas=</Transaction>
+  </Transactions>
+</BorlandProject>

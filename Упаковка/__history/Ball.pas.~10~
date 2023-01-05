@@ -1,0 +1,36 @@
+unit Ball;
+
+interface
+uses  WinTypes, WinProcs, Messages, Classes, Graphics, Controls, ExtCtrls, SysUtils;
+type
+  TNotifyEvent=procedure(Sender:TObject) of Object;
+type TMyBall=class(TGraphicControl)
+  private
+    FPlayerColor:TColor;
+    FX:Integer;
+    FY:Integer;
+    FRadius:Integer;
+    FSpeed:Integer;
+  protected
+    procedure Paint; override;
+  public
+    constructor Create(AOwner: TComponent); override;
+end;
+procedure Register;
+implementation
+/////////////////////////////////////
+constructor TMyBall.Create(AOwner: TComponent);
+begin
+  inherited Create(AOwner);
+  FPlayerColor:=clBlue;
+  FX:=Width div 2 - 30;
+  FY:=Height-70;
+  FRadius:=10;
+  FSpeed:=10;
+end;
+/////////////////////////////////////
+procedure Register;
+begin
+   RegisterComponents('Test', [TMyBall]);
+end;
+end.

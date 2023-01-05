@@ -1,0 +1,25 @@
+unit Ball;
+
+interface
+uses  WinTypes, WinProcs, Messages, Classes, Graphics, Controls, ExtCtrls, SysUtils;
+type
+  TNotifyEvent=procedure(Sender:TObject) of Object;
+type TMyBall=class(TGraphicControl)
+  public
+    FBallColor:TColor;
+    FX:Integer;
+    FY:Integer;
+    FWidth:Integer;
+    FHeight:Integer;
+    FSpeed:Integer;
+end;
+
+procedure Register;
+implementation
+///////////////////////////////////////
+///////////////////////////////////////
+procedure Register;
+begin
+   RegisterComponents('Test', [TMyBall]);
+end;
+end.

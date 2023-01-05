@@ -1,0 +1,102 @@
+unit Player;
+
+interface
+uses  WinTypes, WinProcs, Messages, Classes, Graphics, Controls, ExtCtrls, SysUtils;
+const Step=9;
+type
+  TNotifyEvent=procedure(Sender:TObject) of Object;
+type TMyPlayer=class(TGraphicControl)
+  private
+    FPlayerColor:TColor;
+    FX:Integer;
+    FY:Integer;
+    FWidth:Integer;
+    FHeight:Integer;
+  protected
+    procedure Paint; override;
+  public
+    property Color;
+    procedure SetX(Value: Integer); virtual;
+    function GetX: Integer; virtual;
+    procedure MoveLeft; virtual;
+    procedure MoveRight; virtual;
+    constructor Create(AOwner: TComponent); override;
+  published
+    property _X: integer read GetX write SetX;
+end;
+
+procedure Register;
+implementation
+///////////////////////////////////////////
+constructor TMyPlayer.Create(AOwner: TComponent);
+begin
+  inherited Create(AOwner);
+  Width:=300;
+  Height:=400;
+  Color:=clGreen;
+  FPlayerColor:=clBlue;
+  FX:=Width div 2 - 30;
+  FY:=Height-50;;
+  FWidth:=60;
+  FHeight:=15;
+end;
+
+function TMyPlayer.GetX:Integer;
+begin
+  Result:=FX;
+end;
+procedure TMyPlayer.SetX(Value:Integer);
+begin
+  if (Value+FWidth>Width) then
+  begin
+    Value:=Width-FWidth;
+  end else
+  begin
+    if (Value<0) then
+    begin
+      Value:=0;
+    end;
+  end;
+  if (FX<>Value) then
+  begin
+      FX:=Value;
+      Refresh;
+  end;
+end;
+
+procedure TMyPlayer.MoveLeft;
+begin
+  SetX(GetX - Step);
+end;
+procedure TMyPlayer.MoveRight;
+begin
+  SetX(GetX + Step);
+end;
+
+procedure TMyPlayer.Paint;
+var
+  Image: TBitmap;
+  TheRect: TRect;
+begin
+   Image:= TBitmap.Create;
+    try
+      Image.Width:=Width;
+      Image.Height:=Height;
+      with Image.Canvas do
+      begin
+        Brush.Color:=Color;
+        FillRect(ClientRect);
+        Brush.Color:=FPlayerColor;
+        Rectangle(FX,FY,FX+FWidth,FY+FHeight);
+      end;
+      Canvas.CopyRect(ClientRect, Image.Canvas, ClientRect);
+    finally
+      Image.Free;
+    end;
+end;
+///////////////////////////////////////////
+procedure Register;
+begin
+   RegisterComponents('Test', [TMyPlayer]);
+end;
+end.

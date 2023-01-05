@@ -1,0 +1,446 @@
+unit Arcanoid;
+
+interface
+uses  WinTypes, WinProcs, Messages, Classes, Graphics, Controls, ExtCtrls, SysUtils, Math;
+const Step=4;//Шаг перемещения платформы (игрока)
+const N=5;//Количество плиток по горизонтали
+const M=5;//Количество плиток по вертикали
+type
+  TNotifyEvent=procedure(Sender:TObject) of Object;
+type TMyArcanoid=class(TGraphicControl)
+  private
+    ////Платформа (Игрок)////
+    FPlayerColor:TColor;//Цвет платформы (игрока)
+    FPlayerX:Integer;//Координата верхнего левого угла платформы (игрока) по оси X
+    FPlayerY:Integer;//Координата верхнего левого угла платформы (игрока) по оси Y
+    FPlayerWidth:Integer;//Ширина платформы (игрока)
+    FPlayerHeight:Integer;//Высота платформы (игрока)
+    FOnMove: boolean;//Проверка движения мыши
+    /////////////////////////
+    ///////////Мяч///////////
+    FBallColor:TColor;//Цвет мяча
+    FBallX:Real;//Координата центра мяча по оси X
+    FBallY:Integer;//Координата центра мяча по оси Y
+    FBallRadius:Integer;//Радиус мачя
+    FBallSpeedX:Real;//Размер шага перемещения мяча по оси X
+    FBallSpeedY:Integer;//Размер шага перемещения мяча по оси Y
+    /////////////////////////
+    /////////Плитки//////////
+    FPlatformX:array [0..N-1] of Integer;//Массив для хранения верхних углов всех плиток по оси X
+    FPlatformY:array [0..N-1] of Integer;//Массив для хранения верхних углов всех плиток по оси Y
+    FPlatforms:array [0..N-1,0..M-1] of Boolean;//Массив для хранения информации о том, стоит ли отрисовывать следующую плитки или нет
+    FPlatformsColor:TColor;//Цвет плиток
+    /////////////////////////
+    ////////Событие//////////
+    FScore:TNotifyEvent;
+    /////////////////////////
+    //////////Таймер/////////
+    FTimer: TTimer;
+    /////////////////////////
+  protected
+    procedure Paint; override;//Процедура отрисовки
+    procedure WMLBttonDown(var M: Tmessage); message wm_LButtonDown;//Нажатие на кнопку мыши
+    procedure WMLBttonUp(var M: Tmessage); message wm_LButtonUp;//Отжатие кнопки мыши
+    procedure WMMove(var M: TMessage); message WM_MOUSEMOVE;//Перемещение мыши
+    /////////////////Платформа(игрок)//////////////////
+    procedure SetPlayerX(Value: Integer); virtual;//Установление новой координаты верхнего левого угла платформы (игрока)
+    procedure SetPlayerColor(Value: TColor); virtual;//Установка цвета платформы (игрока)
+    ///////////////////////////////////////////////////
+    ///////////////////////Мяч/////////////////////////
+    procedure SetBallX(Value: Real); virtual;//Установление новой координаты центра мяча по оси X
+    procedure SetBallY(Value: Integer); virtual;//Установление новой координаты центра мяча по оси Y
+    procedure BallMove; virtual;//Перемещение мяча*
+    procedure SetBallColor(Value: TColor); virtual;//Цвет мача
+    ///////////////////////////////////////////////////
+    //////////////////////Плитки///////////////////////
+    function BallAndPlatformsConflict:Boolean; virtual;//Отслеживание столкновения мяча с плиткой*
+    procedure SetPlatformsColor(Value: TColor); virtual;//Цвет плиток
+    ///////////////////////////////////////////////////
+    ////////////////////////Игра///////////////////////
+    procedure StartPositionPlayer; virtual;//Возвращение платформы (игрока) в исходное положение
+    function CountFalsePlatforms:Integer; virtual;//Счётчик сбитых плиток
+    ///////////////////////////////////////////////////
+    //////////////////////Таймер///////////////////////
+    procedure DoTimer(Sender: TObject);
+    destructor Destroy;
+    ///////////////////////////////////////////////////
+    /////////////////////Событие///////////////////////
+    procedure DoScore;
+    ///////////////////////////////////////////////////
+    constructor Create(AOwner: TComponent); override;//Объявление конструктора
+  public
+    //////////////////////Таймер///////////////////////
+    procedure StartArcanoid; virtual;
+    ///////////////////////////////////////////////////
+  published
+    property PlayerColor: TColor read FPlayerColor write SetPlayerColor;
+    property BallColor: TColor read FBallColor write SetBallColor;
+    property PlatformsColor: TColor read FPlatformsColor write SetPlatformsColor;
+    property Color;
+    property Score: TNotifyEvent read FScore write FScore;
+    property Count: Integer read CountFalsePlatforms;
+end;
+
+procedure Register;
+implementation
+///////////////////////////////////////////
+constructor TMyArcanoid.Create(AOwner: TComponent);
+var
+  i,j:Integer;
+begin
+  inherited Create(AOwner);
+  ControlStyle:=ControlStyle+[csFramed, csOpaque];
+  Width:=300;//Ширина визуального компанента
+  Height:=400;//Высота визуального компанента
+  Color:=clGreen;//Цвет фона визуального компанента
+  /////Платформа(игрок)////
+  FPlayerColor:=clBlue;//Цвет платформы (игрока)
+  FPlayerX:=Width div 2 - 30;//Начальная координата верхнего левого угла платформы (игрока) по оси X
+  FPlayerY:=Height-50;//Начальная координата верхнего левого угла платформы (игрока) по оси Y
+  FPlayerWidth:=60;//Ширина платформы (игрока)
+  FPlayerHeight:=15;//Высота платформы (игрока)
+  FOnMove:=False;
+  /////////////////////////
+  ///////////Мяч///////////
+  FBallColor:=clRed;//Цвет мяча
+  FBallX:=Width div 2;//Начальная координата центра мяча по оси X
+  FBallY:=Height-60;//Начальная координата центра мяча по оси Y
+  FBallRadius:=10;//Радиус мяча
+  FBallSpeedX:=0;//Размер шага перемещеня мяча по оси X
+  FBallSpeedY:=3;//Размер шага перемещеня мяча по оси Y
+  /////////////////////////
+  /////////Плитки//////////
+  FPlatformsColor:=clYellow;//Цвет плиток
+  //Заполнения массива верхних левых углов плток по оси X//
+  for i:=0 to N-1 do
+  begin
+    FPlatformX[i]:=i*FPlayerWidth;
+  end;
+  /////////////////////////////////////////////////////////
+  //Заполнения массива верхних левых углов плток по оси Y//
+  for i:=0 to M-1 do
+  begin
+    FPlatformY[i]:=i*FPlayerHeight;
+  end;
+  /////////////////////////////////////////////////////////
+  //Сообщение о том, что все плитки должны быть отрисованы/
+  for i:=0 to M-1 do
+  begin
+    for j:=0 to N-1 do
+    begin
+      FPlatforms[i,j]:=true;
+    end;
+  end;
+  /////////////////////////////////////////////////////////
+  //////////Таймер//////////
+  FTimer:=TTimer.Create(nil);
+  FTimer.Interval:=1;
+  FTimer.OnTimer:=DoTimer;
+  FTimer.Enabled:=False;
+  /////////////////////////
+end;
+////////////////////////////////////////////////////
+/////////////////Платформа(игрок)///////////////////
+procedure TMyArcanoid.SetPlayerX(Value:Integer);
+begin
+  if (Value+FPlayerWidth>Width) then
+  begin
+    Value:=Width-FPlayerWidth;
+  end else
+  begin
+    if (Value<0) then
+    begin
+      Value:=0;
+    end;
+  end;
+  if (FPlayerX<>Value) then
+  begin
+      FPlayerX:=Value;
+  end;
+end;
+procedure TMyArcanoid.WMLBttonDown(var M: Tmessage);
+var Mes: TMessage;
+begin
+  if (FTimer.Enabled=True)and(((M.LParamLo>=FPlayerX)and(M.LParamLo<=FPlayerX+FPlayerWidth))and((M.LParamHi>=FPlayerY)and(M.LParamHi<=FPlayerY+FPlayerHeight))) then
+  begin
+    inherited;
+    if (M.LParamLo<32768) then
+    begin
+      SetPlayerX(M.LParamLo-FPlayerWidth div 2);
+    end else
+    begin
+      SetPlayerX(0);
+    end;
+    FOnMove:=True;
+  end;
+end;
+procedure TMyArcanoid.WMLBttonUp(var M: Tmessage);
+var Mes1: TMessage;
+begin
+  inherited;
+  FOnMove:=False;
+end;
+procedure TMyArcanoid.WMMove(var M: TMessage);
+begin
+  if (FOnMove)and(FTimer.Enabled=True) then
+  begin
+    if (M.LParamLo<32768) then
+    begin
+      SetPlayerX(M.LParamLo-FPlayerWidth div 2);
+    end else
+    begin
+      SetPlayerX(0);
+    end;
+  end;
+end;
+procedure TMyArcanoid.SetPlayerColor(Value: TColor);
+begin
+  if (Value<>FPlayerColor) then
+  begin
+    FPlayerColor:=Value;
+    Refresh;
+  end;
+end;
+////////////////////////////////////////////////////
+////////////////////////Мяч/////////////////////////
+procedure TMyArcanoid.SetBallX(Value:Real);
+begin
+  if (FBallX<>Value) then
+  begin
+      FBallX:=Value;
+      Refresh;
+  end;
+end;
+procedure TMyArcanoid.SetBallY(Value:Integer);
+begin
+  if (FBallY<>Value) then
+  begin
+      FBallY:=Value;
+      Refresh;
+  end;
+end;
+procedure TMyArcanoid.BallMove;
+begin
+    if (FBallSpeedX<=0)and(FBallX-FBallRadius<=0) then
+    begin
+      FBallSpeedX:=FBallSpeedX*-1;
+    end else
+    begin
+      if (FBallSpeedX>=0)and(FBallX+FBallRadius>=Width) then
+      begin
+        FBallSpeedX:=FBallSpeedX*-1;
+      end;
+    end;
+    if (FBallY-FBallRadius<=0) then
+    begin
+      FBallSpeedY:=FBallSpeedY*-1;
+    end else
+    begin
+      if (FBallY+FBallRadius>=FPlayerY)and(FBallX+FBallRadius>=FPlayerX)and(FBallX-FBallRadius<=FPlayerX+FPlayerWidth)and(FBallY-FBallRadius<FPlayerY) then
+      begin
+        FBallSpeedY:=FBallSpeedY*-1;
+        if (FBallX<FPlayerX+FPlayerWidth/2) then
+        begin
+          FBallSpeedX:=(((FPlayerX+FPlayerWidth/2)-FBallX)/10)*-1;
+        end else
+        begin
+          FBallSpeedX:=(FBallX-(FPlayerX+FPlayerWidth/2))/10;
+        end;
+      end;
+    end;
+    FBallX:=FBallX+FBallSpeedX;
+    SetBallX(FBallX);
+    SetBallY(FBallY+FBallSpeedY);
+end;
+procedure TMyArcanoid.SetBallColor(Value: TColor);
+begin
+  if (Value<>FBallColor) then
+  begin
+    FBallColor:=Value;
+    Refresh;
+  end;
+end;
+////////////////////////////////////////////////////
+///////////////////////Плитки///////////////////////
+function TMyArcanoid.BallAndPlatformsConflict:Boolean;
+var
+  i,j:Integer;
+begin
+  for i:=0 to M-1 do
+  begin
+    for j:=0 to N-1 do
+    begin
+      if (FPlatforms[i,j]=True) then
+      begin
+        if (FBallX>=FPlatformX[j])and(FBallX<=FPlatformX[j]+FPlayerWidth)and(FBallY-FBallRadius<=FPlatformY[i]+FPlayerHeight)and(FBallY+FBallRadius>FPlatformY[i]+FPlayerHeight) then
+        begin
+          FBallSpeedY:=-FBallSpeedY;
+          FPlatforms[i,j]:=False;
+          Result:=True;
+        end else
+        begin
+          if (FBallX>=FPlatformX[j])and(FBallX<=FPlatformX[j]+FPlayerWidth)and(FBallY+FBallRadius>=FPlatformY[i])and(FBallY-FBallRadius<FPlatformY[i]) then
+          begin
+            FBallSpeedY:=FBallSpeedY*-1;
+            FPlatforms[i,j]:=False;
+            Result:=True;
+          end;
+        end;
+        if (FBallY<=FPlatformY[i]+FPlayerHeight)and(FBallY>=FPlatformY[i])and(FBallX-FBallRadius<=FPlatformX[j]+FPlayerWidth)and(FBallX+FBallRadius>FPlatformX[j]+FPlayerWidth) then
+        begin
+          if (FBallSpeedX>=0)and(FBallSpeedX<=0.9) then
+          begin
+            FBallSpeedY:=FBallSpeedY*-1;
+          end;
+          FBallSpeedX:=-FBallSpeedX;
+          FPlatforms[i,j]:=False;
+          Result:=True;
+        end else
+        begin
+          if (FBallY<=FPlatformY[i]+FPlayerHeight)and(FBallY>=FPlatformY[i])and(FBallX+FBallRadius>=FPlatformX[j])and(FBallX-FBallRadius<FPlatformX[j]) then
+          begin
+            if (FBallSpeedX>=0)and(FBallSpeedX<=0.9) then
+            begin
+              FBallSpeedY:=FBallSpeedY*-1;
+            end;
+            FBallSpeedX:=FBallSpeedX*-1;
+            FPlatforms[i,j]:=False;
+            Result:=True;
+          end;
+        end;
+      end;
+    end;
+  end;
+end;
+procedure TMyArcanoid.SetPlatformsColor(Value: TColor);
+begin
+  if (Value<>FPlatformsColor) then
+  begin
+    FPlatformsColor:=Value;
+    Refresh;
+  end;
+end;
+////////////////////////////////////////////////////
+////////////////////////Игра////////////////////////
+procedure TMyArcanoid.StartPositionPlayer;
+var
+  i,j:integer;
+begin
+    FPlayerX:=Width div 2 - 30;
+    FPlayerY:=Height-50;
+    FBallX:=Width/2;
+    FBallY:=Height-60;
+    FBallSpeedX:=0;
+    for i:=0 to M-1 do
+    begin
+      for j:=0 to N-1 do
+      begin
+        FPlatforms[i,j]:=True;
+      end;
+    end;
+end;
+function TMyArcanoid.CountFalsePlatforms:Integer;
+var
+  i,j,count:integer;
+begin
+  count:=0;
+  for i:=0 to M-1 do
+  begin
+    for j:=0 to N-1 do
+    begin
+      if (FPlatforms[i,j]=False) then
+      begin
+        count:=count+1;
+      end;
+    end;
+  end;
+  Result:=count;
+end;
+////////////////////////////////////////////////////
+//////////////////////Таймер////////////////////////
+destructor TMyArcanoid.Destroy;
+begin
+   FTimer.Free;
+   inherited;
+end;
+procedure TMyArcanoid.StartArcanoid;
+begin
+  FTimer.Enabled:=True;
+  DoScore;
+end;
+procedure TMyArcanoid.DoTimer(Sender: TObject);
+begin
+  BallMove;//Перемещение мяча
+  //////////////Проверка столкновений///////////////
+  if (BallAndPlatformsConflict=True) then
+  begin
+    CountFalsePlatforms;
+    DoScore;
+  end;
+  //////////////////////////////////////////////////
+  ////////////////Проверка проигрыша////////////////
+  if (FBallY+FBallRadius>=Height) then
+  begin
+    StartPositionPlayer;
+    FTimer.Enabled:=False;
+  end;
+  //////////////////////////////////////////////////
+  ////////////////Проверка выигрыша////////////////
+  if (CountFalsePlatforms=25) then
+  begin
+    StartPositionPlayer;
+    FTimer.Enabled:=False;
+  end;
+  //////////////////////////////////////////////////
+end;
+////////////////////////////////////////////////////
+/////////////////////Событие////////////////////////
+procedure TMyArcanoid.DoScore;
+begin
+  if Assigned(FScore) then
+  begin
+    FScore(Self);
+  end;
+end;
+////////////////////////////////////////////////////
+////////////////////Отрисовка///////////////////////
+procedure TMyArcanoid.Paint;
+var
+  Image: TBitmap;
+  i,j:Integer;
+begin
+   Image:= TBitmap.Create;
+    try
+      Image.Width:=Width;
+      Image.Height:=Height;
+      with Image.Canvas do
+      begin
+        Brush.Color:=Color;
+        FillRect(ClientRect);
+        Brush.Color:=FPlayerColor;
+        Rectangle(FPlayerX,FPlayerY,FPlayerX+FPlayerWidth,FPlayerY+FPlayerHeight);
+        Brush.Color:=FBallColor;
+        Ellipse(Round(FBallX-FBallRadius),FBallY-FBallRadius,Round(FBallX+FBallRadius),FBallY+FBallRadius);
+        Brush.Color:=FPlatformsColor;
+        for i:=0 to M-1 do
+        begin
+          for j:=0 to N-1 do
+          begin
+            if (FPlatforms[i,j]=true) then
+            begin
+              Rectangle(FPlatformX[j],FPlatformY[i],FPlatformX[j]+FPlayerWidth,FPlatformY[i]+FPlayerHeight);
+            end;
+          end;
+        end;
+      end;
+      Canvas.CopyRect(ClientRect, Image.Canvas, ClientRect);
+    finally
+      Image.Free;
+    end;
+end;
+///////////////////////////////////////////
+procedure Register;
+begin
+   RegisterComponents('Test', [TMyArcanoid]);
+end;
+end.
